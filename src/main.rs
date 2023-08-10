@@ -8,7 +8,7 @@ use crossterm::terminal::{self, ClearType};
 use crossterm::style::{self, Stylize, SetBackgroundColor, Print, style};
 use crossterm::cursor;
 
-const row_index_len: u16 = 4;
+const row_index_len: u16 = 6;
 
 struct Ui {
     text: Vec<String>,
@@ -36,7 +36,7 @@ impl Ui {
         self.stdout.queue(cursor::MoveTo(0, 0));
 
         for (row_num, row) in self.text.iter().enumerate() {
-            self.stdout.queue(style::PrintStyledContent(format!(" {}| ", row_num+1).blue()));
+            self.stdout.queue(style::PrintStyledContent(format!(" {:>3}| ", row_num+1).blue()));
             self.stdout.queue(style::Print(format!("{}{}", row, "\n")));
         }
         self.stdout.flush();
