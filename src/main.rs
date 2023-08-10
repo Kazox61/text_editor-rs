@@ -140,7 +140,7 @@ impl Ui {
     }
 
     fn enter(&mut self) {
-        let mut current_row = self.text[self.cursor_y].clone();
+        let current_row = self.text[self.cursor_y].clone();
         let (first, last) = current_row.split_at(self.cursor_x);
         self.text[self.cursor_y] = first.to_string();
         self.text.insert(self.cursor_y+1, last.to_string());
@@ -153,10 +153,45 @@ impl Ui {
         self.update_current_line();
         self.stdout.flush();
     }
+
+    fn delete(&mut self, index: isize) {
+        if index == -1 && self.cursor_y == 0 {
+            return;
+        }
+        //merge current line and line above
+        if index == -1 {
+            self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
+            self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+
+            let line_above = self.text[self.cursor_y-1].clone();
+            let line_length_above = self.text[self.cursor_y-1].len();
+
+            let current_line = self.text[self.cursor_y].clone();
+            let new_line = line_above + &current_line;
+            self.text[self.cursor_y-1] = new_line;
+            self.text.remove(self.cursor_y);
+            self.cursor_y -= 1;
+            self.cursor_x = line_length_above;
+            self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
+        }
+        else {
+            let mut current_row = self.text[self.cursor_y].clone();
+            self.cursor_x -= 1;
+            current_row.remove(index as usize);
+            self.text[self.cursor_y] = current_row;
+            self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
+            self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+        }
+        self.render();
+        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
+        self.update_current_line();
+        self.stdout.flush();
+    }
 }
 
-fn on_start() {
-
+fn on_close() {
+    io::stdout().execute(cursor::MoveTo(0, 0));
+    io::stdout().execute(terminal::Clear(ClearType::All));
 }
 
 fn on_update(ui: &mut Ui) {
@@ -172,10 +207,14 @@ fn on_update(ui: &mut Ui) {
         }
 
         if modifiers.contains(KeyModifiers::CONTROL) && code == KeyCode::Char('q')  {
+            on_close();
             std::process::exit(0);
         }
         else if code == KeyCode::Enter && kind == KeyEventKind::Release {
             ui.enter();
+        }
+        else if code == KeyCode::Backspace && kind == KeyEventKind::Release {
+            ui.delete(ui.cursor_x as isize -1);
         }
         else if code == KeyCode::Up && kind == KeyEventKind::Release {
             ui.move_cursor_up();
