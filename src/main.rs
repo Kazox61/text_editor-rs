@@ -7,6 +7,8 @@ use crossterm::event::{poll, read, Event, self, KeyEvent, KeyCode, KeyModifiers,
 use crossterm::terminal::{self, ClearType};
 use crossterm::style::{self, Stylize, SetBackgroundColor, Print, style};
 use crossterm::cursor;
+use std::fs::read_to_string;
+use std::env;
 
 const row_index_len: u16 = 6;
 
@@ -18,13 +20,9 @@ struct Ui {
 }
 
 impl Ui {
-    fn init() -> Ui {
+    fn init(text: Vec<String>) -> Ui {
         Ui {
-            text: vec![
-                "Hello World".to_string(),
-                "Test123".to_string(),
-                "Finish123".to_string()
-            ],
+            text,
             cursor_x: 0,
             cursor_y: 0,
             stdout: io::stdout()
@@ -193,6 +191,16 @@ impl Ui {
     }
 }
 
+fn read_file_lines(filename: &String) -> Vec<String>{
+    let mut result = Vec::new();
+
+    for line in read_to_string(filename).unwrap().lines() {
+        result.push(line.to_string())
+    }
+
+    result
+}
+
 fn on_close() {
     io::stdout().execute(cursor::MoveTo(0, 0));
     io::stdout().execute(terminal::Clear(ClearType::All));
@@ -238,7 +246,13 @@ fn on_update(ui: &mut Ui) {
 
 fn main()  {
     terminal::enable_raw_mode().unwrap();
-    let mut ui = Ui::init();
+
+    let args: Vec<String> = env::args().collect();
+    let file_path = &args[1];
+
+    let file_lines = read_file_lines(&file_path);
+
+    let mut ui = Ui::init(file_lines);
     ui.render();
     ui.stdout.execute(cursor::MoveTo(row_index_len, ui.cursor_y as u16));
     ui.update_current_line();
