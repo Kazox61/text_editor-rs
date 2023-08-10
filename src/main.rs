@@ -8,6 +8,8 @@ use crossterm::terminal::{self, ClearType};
 use crossterm::style::{self, Stylize, SetBackgroundColor, Print, style};
 use crossterm::cursor;
 
+const row_index_len: u16 = 4;
+
 struct Ui {
     text: Vec<String>,
     cursor_x: usize,
@@ -34,12 +36,14 @@ impl Ui {
         self.stdout.queue(cursor::MoveTo(0, 0));
 
         for (row_num, row) in self.text.iter().enumerate() {
+            self.stdout.queue(style::PrintStyledContent(format!(" {}| ", row_num+1).blue()));
             self.stdout.queue(style::Print(format!("{}{}", row, "\n")));
         }
         self.stdout.flush();
     }
 
     fn update_current_line(&mut self) {
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
         let mut before_cursor = String::new();
         let mut cursor_char = String::new();
         let mut after_cursor = String::new();
@@ -75,8 +79,8 @@ impl Ui {
         if self.cursor_y == 0 {
             return;
         }
-        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
-        self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
+        self.stdout.queue(terminal::Clear(terminal::ClearType::UntilNewLine));
         self.stdout.queue(style::Print(format!("{}{}", self.text[self.cursor_y], "\n")));
 
         self.cursor_y = self.cursor_y-1;
@@ -91,8 +95,8 @@ impl Ui {
         if self.cursor_y == self.text.len() - 1 {
             return;
         }
-        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
-        self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
+        self.stdout.queue(terminal::Clear(terminal::ClearType::UntilNewLine));
         self.stdout.queue(style::Print(format!("{}{}", self.text[self.cursor_y], "\n")));
 
         self.cursor_y = std::cmp::min(self.text.len()-1, self.cursor_y+1);
@@ -107,8 +111,8 @@ impl Ui {
             return;
         }
 
-        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
-        self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
+        self.stdout.queue(terminal::Clear(terminal::ClearType::UntilNewLine));
         
         self.cursor_x = self.cursor_x-1;
 
@@ -117,8 +121,8 @@ impl Ui {
     }
 
     fn move_cursor_right(&mut self) {
-        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
-        self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
+        self.stdout.queue(terminal::Clear(terminal::ClearType::UntilNewLine));
 
         self.cursor_x = std::cmp::min(self.text[self.cursor_y].len(), self.cursor_x+1);
 
@@ -132,8 +136,8 @@ impl Ui {
         self.text[self.cursor_y] = row;
         self.cursor_x += 1;
 
-        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
-        self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
+        self.stdout.queue(terminal::Clear(terminal::ClearType::UntilNewLine));
         
         self.update_current_line();
         self.stdout.flush();
@@ -149,7 +153,7 @@ impl Ui {
         self.cursor_y += 1;
         self.cursor_x = 0;
 
-        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
         self.update_current_line();
         self.stdout.flush();
     }
@@ -160,8 +164,8 @@ impl Ui {
         }
         //merge current line and line above
         if index == -1 {
-            self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
-            self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+            self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
+            self.stdout.queue(terminal::Clear(terminal::ClearType::UntilNewLine));
 
             let line_above = self.text[self.cursor_y-1].clone();
             let line_length_above = self.text[self.cursor_y-1].len();
@@ -172,18 +176,18 @@ impl Ui {
             self.text.remove(self.cursor_y);
             self.cursor_y -= 1;
             self.cursor_x = line_length_above;
-            self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
+            self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
         }
         else {
             let mut current_row = self.text[self.cursor_y].clone();
             self.cursor_x -= 1;
             current_row.remove(index as usize);
             self.text[self.cursor_y] = current_row;
-            self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
-            self.stdout.queue(terminal::Clear(terminal::ClearType::CurrentLine));
+            self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
+            self.stdout.queue(terminal::Clear(terminal::ClearType::UntilNewLine));
         }
         self.render();
-        self.stdout.queue(cursor::MoveTo(0, self.cursor_y as u16));
+        self.stdout.queue(cursor::MoveTo(row_index_len, self.cursor_y as u16));
         self.update_current_line();
         self.stdout.flush();
     }
@@ -236,7 +240,7 @@ fn main()  {
     terminal::enable_raw_mode().unwrap();
     let mut ui = Ui::init();
     ui.render();
-    ui.stdout.execute(cursor::MoveTo(0, ui.cursor_y as u16));
+    ui.stdout.execute(cursor::MoveTo(row_index_len, ui.cursor_y as u16));
     ui.update_current_line();
 
     loop {
